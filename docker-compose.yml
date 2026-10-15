@@ -1,0 +1,33 @@
+name: legenipng
+
+services:
+  legenipng:
+    build: .
+    image: legenipng:latest
+    container_name: legenipng
+    restart: unless-stopped
+    # Plages de sous-réseaux Docker épuisées sur l'hôte : bridge par défaut,
+    # aucun réseau dédié n'est nécessaire pour un conteneur unique.
+    network_mode: bridge
+    ports:
+      - "127.0.0.1:9650:8000"
+    environment:
+      LEGENIPNG_THREADS: "4"
+      OMP_NUM_THREADS: "4"
+      LEGENIPNG_MAX_JOBS: "1"
+      LEGENIPNG_QUEUE_MAX: "8"
+    cpus: 4
+    mem_limit: 5g
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

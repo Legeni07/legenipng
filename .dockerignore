@@ -1,0 +1,10 @@
+.git
+.gitignore
+.dockerignore
+**/__pycache__
+docs
+tests
+deploy
+README.md
+*.log
+.env

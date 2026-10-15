@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LegeniPNG — IA image</title>
+<meta name="description" content="Plateforme de test Legeni Consulting : détourage, correction et agrandissement d'images par intelligence artificielle.">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=1">
+<script src="/app.js?v=1" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">
+    <img src="/logo.svg" alt="" width="34" height="34">
+    <span class="brand-text"><strong>LegeniPNG</strong><small data-i18n="tagline">Laboratoire d'IA pour l'image</small></span>
+  </a>
+  <span class="badge" data-i18n="beta">Plateforme de test</span>
+  <nav class="topnav">
+    <a href="/api/docs" target="_blank" rel="noopener" data-i18n="api">API</a>
+    <button type="button" class="lang" id="langBtn" aria-label="Language">EN</button>
+  </nav>
+</header>
+
+<main class="layout">
+  <section class="stage" aria-live="polite">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="dropHint">
+      <input type="file" id="fileInput" accept="image/*,.heic,.heif" hidden>
+      <svg class="drop-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 31V11m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 29v6a5 5 0 0 0 5 5h22a5 5 0 0 0 5-5v-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <p class="drop-title" data-i18n="dropTitle">Déposez une image ici</p>
+      <p class="drop-hint" id="dropHint" data-i18n="dropHint">ou cliquez pour choisir un fichier — vous pouvez aussi coller (Ctrl+V)</p>
+      <p class="drop-formats" id="dropFormats">JPEG · PNG · WebP · HEIC</p>
+    </div>
+
+    <div class="viewer" id="viewer" hidden>
+      <div class="viewer-bar">
+        <div class="seg" role="tablist" id="viewSeg">
+          <button type="button" data-view="compare" class="on" data-i18n="viewCompare">Avant / après</button>
+          <button type="button" data-view="after" data-i18n="viewAfter">Résultat</button>
+          <button type="button" data-view="before" data-i18n="viewBefore">Original</button>
+        </div>
+        <div class="viewer-actions">
+          <button type="button" class="ghost" id="bgToggle" data-i18n="checker" title="">Damier</button>
+          <button type="button" class="ghost" id="newBtn" data-i18n="newImage">Nouvelle image</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <div class="compare" id="compare">
+          <img id="imgBefore" class="layer before" alt="">
+          <div class="after-wrap checker" id="afterWrap"><img id="imgAfter" class="layer" alt=""></div>
+          <div class="handle" id="handle" aria-hidden="true"><span></span></div>
+          <input type="range" id="split" min="0" max="100" value="50" step="0.5" data-i18n-aria="splitAria" aria-label="Position du comparateur">
+          <div class="tag tag-before" data-i18n="before">Avant</div>
+          <div class="tag tag-after" data-i18n="after">Après</div>
+        </div>
+        <div class="busy" id="busy" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p><span data-i18n="processing">Traitement en cours</span> · <span id="elapsed">0</span> s</p>
+          <p class="busy-hint" id="busyHint"></p>
+          <button type="button" class="ghost light" id="cancelBtn" data-i18n="cancel">Annuler</button>
+        </div>
+      </div>
+      <div class="file-line" id="fileLine"></div>
+    </div>
+
+    <div class="result" id="result" hidden>
+      <div class="result-head">
+        <div>
+          <h2 data-i18n="resultTitle">Résultat</h2>
+          <p class="meta" id="resultMeta"></p>
+        </div>
+        <div class="result-actions">
+          <button type="button" class="ghost" id="reuseBtn" data-i18n="reuse">Retravailler ce résultat</button>
+          <a class="btn primary" id="downloadBtn" download data-i18n="download">Télécharger</a>
+        </div>
+      </div>
+      <ol class="steps" id="steps"></ol>
+      <div class="notes" id="notes"></div>
+      <details class="analysis" id="analysisBox" hidden>
+        <summary data-i18n="analysisTitle">Analyse automatique de l'image</summary>
+        <div class="chips" id="analysis"></div>
+      </details>
+    </div>
+
+    <div class="alert" id="alert" role="alert" hidden></div>
+  </section>
+
+  <aside class="panel">
+    <form id="form" novalidate>
+      <fieldset class="presets">
+        <legend data-i18n="presets">Que voulez-vous faire ?</legend>
+        <div class="preset-grid">
+          <button type="button" class="preset on" data-preset="cutout">
+            <span class="p-ico p-cut" aria-hidden="true"></span>
+            <span><strong data-i18n="pCut">Retirer le fond</strong><small data-i18n="pCutSub">PNG transparent</small></span>
+          </button>
+          <button type="button" class="preset" data-preset="fix">
+            <span class="p-ico p-fix" aria-hidden="true"></span>
+            <span><strong data-i18n="pFix">Corriger la photo</strong><small data-i18n="pFixSub">Couleurs, lumière, bruit</small></span>
+          </button>
+          <button type="button" class="preset" data-preset="upscale">
+            <span class="p-ico p-up" aria-hidden="true"></span>
+            <span><strong data-i18n="pUp">Agrandir ×4</strong><small data-i18n="pUpSub">Super-résolution IA</small></span>
+          </button>
+          <button type="button" class="preset" data-preset="all">
+            <span class="p-ico p-all" aria-hidden="true"></span>
+            <span><strong data-i18n="pAll">Tout-en-un</strong><small data-i18n="pAllSub">Corriger + détourer</small></span>
+          </button>
+        </div>
+      </fieldset>
+
+      <section class="block" id="blkEnhance">
+        <label class="switch-row">
+          <span><strong data-i18n="secEnhance">Correction de l'image</strong><small data-i18n="secEnhanceSub">Balance des blancs, exposition, contraste, bruit, netteté</small></span>
+          <input type="checkbox" id="enhanceOn" class="switch">
+        </label>
+        <div class="block-body" id="enhanceBody">
+          <div class="seg small" id="enhanceMode">
+            <button type="button" data-mode="auto" class="on" data-i18n="auto">Automatique</button>
+            <button type="button" data-mode="manual" data-i18n="manual">Manuelle</button>
+          </div>
+          <p class="hint" id="autoHint" data-i18n="autoHint">L'image est analysée (dominante de couleur, exposition, bruit, flou) et chaque correction est dosée en conséquence.</p>
+          <div class="sliders" id="sliders" hidden></div>
+        </div>
+      </section>
+
+      <section class="block" id="blkBg">
+        <label class="switch-row">
+          <span><strong data-i18n="secBg">Arrière-plan</strong><small data-i18n="secBgSub">Détourage du sujet par segmentation neuronale</small></span>
+          <input type="checkbox" id="bgOn" class="switch" checked>
+        </label>
+        <div class="block-body" id="bgBody">
+          <label class="field">
+            <span data-i18n="model">Modèle</span>
+            <select id="model"></select>
+            <small class="hint" id="modelHint"></small>
+          </label>
+          <label class="field">
+            <span data-i18n="edges">Bords</span>
+            <select id="edges">
+              <option value="refined" data-i18n="edgesRefined">Affinés (recommandé)</option>
+              <option value="standard" data-i18n="edgesStandard">Bruts du modèle</option>
+              <option value="matting" data-i18n="edgesMatting">Matting cheveux (lent)</option>
+            </select>
+          </label>
+          <div class="field">
+            <span data-i18n="newBg">Nouveau fond</span>
+            <div class="seg small wrap" id="bgMode">
+              <button type="button" data-bg="transparent" class="on" data-i18n="bgTransparent">Transparent</button>
+              <button type="button" data-bg="color" data-i18n="bgColor">Couleur</button>
+              <button type="button" data-bg="blur" data-i18n="bgBlur">Flou</button>
+              <button type="button" data-bg="image" data-i18n="bgImage">Image</button>
+            </div>
+          </div>
+          <div class="sub" id="bgColorRow" hidden>
+            <input type="color" id="bgColor" value="#ffffff" aria-label="Couleur">
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <div class="sub" id="bgBlurRow" hidden>
+            <label class="slider"><span data-i18n="blurAmount">Intensité du flou</span><input type="range" id="bgBlur" min="0" max="100" value="50"><output id="bgBlurOut">50</output></label>
+          </div>
+          <div class="sub" id="bgImageRow" hidden>
+            <label class="file-pick"><input type="file" id="bgFile" accept="image/*,.heic,.heif"><span id="bgFileName">Choisir une image de fond…</span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="blkUp">
+        <label class="switch-row">
+          <span><strong data-i18n="secUp">Agrandissement IA</strong><small data-i18n="secUpSub">Real-ESRGAN : reconstruit les détails, pas un simple étirement</small></span>
+          <input type="checkbox" id="upOn" class="switch">
+        </label>
+        <div class="block-body" id="upBody">
+          <div class="field">
+            <span data-i18n="factor">Facteur</span>
+            <div class="seg small" id="upFactor">
+              <button type="button" data-f="2" data-i18n="x2">×2</button>
+              <button type="button" data-f="4" class="on" data-i18n="x4">×4</button>
+            </div>
+          </div>
+          <div class="field">
+            <span data-i18n="srDenoise">Débruitage</span>
+            <div class="seg small" id="srDenoise">
+              <button type="button" data-d="low" data-i18n="dLow">Garder le grain</button>
+              <button type="button" data-d="medium" class="on" data-i18n="dMed">Moyen</button>
+              <button type="button" data-d="high" data-i18n="dHigh">Fort</button>
+            </div>
+          </div>
+          <p class="hint" id="upHint"></p>
+        </div>
+      </section>
+
+      <section class="block flat">
+        <div class="field">
+          <span data-i18n="format">Format de sortie</span>
+          <div class="seg small" id="fmt">
+            <button type="button" data-fmt="png" class="on">PNG</button>
+            <button type="button" data-fmt="webp">WebP</button>
+            <button type="button" data-fmt="jpg">JPEG</button>
+          </div>
+          <small class="hint" id="fmtHint"></small>
+        </div>
+      </section>
+
+      <button type="submit" class="btn primary big" id="runBtn" disabled data-i18n="run">Lancer le traitement</button>
+      <p class="hint center" id="runHint">Ajoutez d'abord une image.</p>
+    </form>
+  </aside>
+</main>
+
+<footer class="foot">
+  <p data-i18n="privacy">Vos images sont traitées en mémoire et ne sont jamais conservées sur le serveur. Métadonnées (EXIF, GPS) retirées du résultat.</p>
+  <p class="muted" id="limits"></p>
+  <p class="muted">© Legeni Consulting · <span data-i18n="engine">Calcul sur processeur, sans GPU : les traitements prennent de 1 à 40 secondes.</span></p>
+</footer>
+</body>
+</html>
